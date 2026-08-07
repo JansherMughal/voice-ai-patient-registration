@@ -12,6 +12,7 @@ config, sent as the `x-vapi-secret` header — we reject anything that doesn't
 match so this endpoint can't be used to write arbitrary patient data from the
 open internet.
 """
+import json
 import logging
 
 from fastapi import APIRouter, Header, HTTPException, Request, Depends
@@ -104,7 +105,11 @@ async def vapi_webhook(
         results = []
         for tool_call in message.get("toolCallList", []):
             name = tool_call["function"]["name"]
-            args = tool_call["function"].get("arguments", {}) or {}
+            args = tool_call["function"].get("arguments") or {}
+            # Vapi sends arguments as a JSON string for some model providers, dict for others.
+            if isinstance(args, str):
+                args = json.loads(args or "{}")
+            logger.info("tool call %s args=%s", name, args)
             handler = _HANDLERS.get(name)
             if handler is None:
                 result = f"error|unknown tool {name}"
