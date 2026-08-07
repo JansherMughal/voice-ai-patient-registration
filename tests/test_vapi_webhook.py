@@ -32,7 +32,7 @@ def _tool_call(name, arguments):
 PATIENT = {
     "first_name": "John",
     "last_name": "Butler",
-    "date_of_birth": "1888-06-25",
+    "date_of_birth": "1988-06-25",
     "sex": "Male",
     "phone_number": "1234567998",
     "address_line_1": "2 Bovat",
@@ -54,6 +54,18 @@ def test_register_patient_accepts_dict_or_json_string_args(as_string):
     assert resp.status_code == 200
     result = resp.json()["results"][0]["result"]
     assert result.startswith("success|"), result
+
+
+def test_implausible_dob_comes_back_as_a_speakable_validation_error():
+    """Live call mishear: "1988" transcribed as "1888" and saved silently."""
+    with TestClient(app) as client:
+        resp = client.post(
+            "/vapi/webhook",
+            json=_tool_call("register_patient", {**PATIENT, "date_of_birth": "1888-06-25"}),
+            headers={"x-vapi-secret": SECRET},
+        )
+    result = resp.json()["results"][0]["result"]
+    assert result.startswith("validation_error|date_of_birth"), result
 
 
 def test_lookup_patient_accepts_json_string_args():
