@@ -1,5 +1,5 @@
-"""Bonus: single-page HTML dashboard listing registered patients. No JS framework —
-server renders a table straight from the DB, reusing the same service layer."""
+"""Single-page HTML dashboard listing registered patients. No JS framework —
+the server renders a table straight from the DB, reusing the same service layer."""
 from fastapi import APIRouter, Depends
 from fastapi.responses import HTMLResponse
 from sqlalchemy.orm import Session

@@ -50,9 +50,10 @@ Caller ──PSTN──> Vapi (phone number, Deepgram nova-3 STT, GPT-4.1, Eleve
 
 ## Why this stack
 
-- **Vapi** over hand-building STT/TTS/turn-taking. The assessment says this is
-  the fastest path to a working system and that integration skill is what's
-  being graded. Its function-calling maps directly onto the tools above.
+- **Vapi** over hand-building STT/TTS/turn-taking. Speech recognition and
+  telephony are solved problems; the interesting work here is conversation
+  design, validation, and persistence. Its function-calling maps directly onto
+  the tools above.
 - **FastAPI + Pydantic.** The spec requires server-side validation independent
   of the voice agent; the same `PatientCreate`/`PatientUpdate` models validate
   both entry points, and a failure becomes a field-level message the agent reads

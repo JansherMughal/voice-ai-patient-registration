@@ -1,9 +1,8 @@
 """Pydantic schemas — this is where server-side validation actually lives.
 
-The PDF is explicit: "Validate all inputs server-side (do not rely solely on
-the voice agent for validation)." Vapi's LLM can still mis-hear or mis-format
-a field; every request (from the voice webhook or a plain curl) runs through
-the same validators here before ever reaching the DB.
+The voice agent is not trusted to validate anything. Its LLM mis-hears and
+mis-formats fields constantly, so every request — from the voice webhook or a
+plain curl — runs through the same validators here before reaching the DB.
 """
 import re
 from datetime import date, datetime
@@ -351,6 +350,6 @@ class PatientOut(PatientBase):
 
 
 class Envelope(BaseModel):
-    """Every API response — success or error — shares this shape, per PDF spec."""
+    """Every API response — success or error — shares this shape."""
     data: Optional[object] = None
     error: Optional[str] = None

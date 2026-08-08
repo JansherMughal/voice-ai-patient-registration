@@ -79,11 +79,10 @@ graph TD
     style domain fill:#e8f4ff
 ```
 
-**The decision worth pointing at:** the voice agent does not call the public
-REST API over HTTP. Both entry points import the same functions from
-[`app/services.py`](../app/services.py). The PDF permits either
-("use the REST API *or directly invoke the same service layer*"); calling the
-service layer directly removes a network hop and, more importantly, makes it
+The voice agent does not call the public REST API over HTTP. Both entry points
+import the same functions from [`app/services.py`](../app/services.py). The spec
+permits either ("use the REST API *or directly invoke the same service layer*");
+calling the service layer directly removes a network hop and makes it
 structurally impossible for voice-path validation to drift from API-path
 validation.
 
@@ -246,10 +245,9 @@ Each normalizer exists because a real call produced the failure it prevents:
 | "New York" | rejected, wanted `NY` | `_normalize_state()` — [schemas.py:96](../app/schemas.py#L96) |
 | "seven five five two three" | `"7 5 5 2 3"` | zip validator — [schemas.py:170](../app/schemas.py#L170) |
 
-**The engineering point:** the LLM is treated as an untrusted input source. It
-mishears, and its mistakes are systematic rather than random, so the server
-corrects the systematic ones and rejects the rest with a message the agent can
-read aloud.
+The LLM is treated as an untrusted input source. It mishears, and its mistakes
+are systematic rather than random, so the server corrects the systematic ones
+and rejects the rest with a message the agent can read aloud.
 
 ---
 
@@ -288,14 +286,14 @@ stateDiagram-v2
     EndCall --> [*]
 ```
 
-Two constraints encoded in the prompt map directly to evaluation criteria:
+Two edges in that diagram carry most of the conversational weight:
 
-- **A correction returns to the field, not to the start.** The PDF asks what
-  happens when a caller says *"actually my last name is D-A-V-I-S"*; the
-  `Confirm → Required` edge is that answer.
-- **`Failure` still reaches `EndCall` through speech.** The PDF asks whether a
-  failed database write produces *"an error or silence"*. Every terminal state
-  says something before hanging up.
+- **`Confirm → Required`.** A correction returns to the field being corrected,
+  not to the start of the call. Saying "actually my last name is D-A-V-I-S"
+  re-asks one field.
+- **`Failure → EndCall`.** A failed database write still reaches the hang-up
+  through speech. Every terminal state says something to the caller first —
+  there is no path that ends in silence.
 
 ---
 
@@ -338,7 +336,7 @@ erDiagram
     }
 ```
 
-Three schema decisions worth defending in review:
+Schema decisions:
 
 1. **`patient_id` is `String(36)`, not a native `UUID` column.** The same model
    runs unmodified on SQLite (tests, local) and PostgreSQL (Railway). A native

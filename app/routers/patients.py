@@ -1,4 +1,4 @@
-"""Public REST API — GET/POST/PUT/DELETE /patients, per the PDF spec.
+"""Public REST API — GET/POST/PUT/DELETE /patients.
 
 Every response uses the {"data": ..., "error": null} envelope. Validation
 errors from Pydantic surface as 422 with the field-level message; not-found

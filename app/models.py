@@ -1,4 +1,4 @@
-"""ORM models — the schema is the single source of truth for constraints (PDF requirement)."""
+"""ORM models — the schema is the single source of truth for column constraints."""
 import uuid
 from datetime import datetime, timezone
 
@@ -51,7 +51,7 @@ class Patient(Base):
 
 
 class CallTranscript(Base):
-    """Bonus: one row per completed Vapi call, linked to the patient it registered/updated."""
+    """One row per completed call, linked to the patient it registered or updated."""
     __tablename__ = "call_transcripts"
 
     id = Column(String(36), primary_key=True, default=_uuid)

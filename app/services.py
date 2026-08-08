@@ -1,10 +1,8 @@
 """Single service layer for patient CRUD.
 
 Both the public REST router (app/routers/patients.py) and the Vapi webhook
-(app/routers/vapi.py) call these same functions — that's the "voice agent
-uses the same service layer as the API" requirement from the PDF, and it's
-what keeps validation/business rules from drifting between the two entry
-points.
+(app/routers/vapi.py) call these same functions, so validation and business
+rules cannot drift between the two entry points.
 """
 from datetime import datetime, timezone
 from typing import Optional
