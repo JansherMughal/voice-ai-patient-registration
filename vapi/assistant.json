@@ -100,7 +100,26 @@
   },
   "voice": {
     "provider": "11labs",
-    "voiceId": "rachel"
+    "voiceId": "rachel",
+    "stability": 0.45,
+    "similarityBoost": 0.75,
+    "style": 0.1,
+    "useSpeakerBoost": true,
+    "speed": 0.95
+  },
+  "startSpeakingPlan": {
+    "waitSeconds": 0.6,
+    "smartEndpointingEnabled": true,
+    "transcriptionEndpointingPlan": {
+      "onPunctuationSeconds": 0.2,
+      "onNoPunctuationSeconds": 1.4,
+      "onNumberSeconds": 1.2
+    }
+  },
+  "stopSpeakingPlan": {
+    "numWords": 2,
+    "voiceSeconds": 0.3,
+    "backoffSeconds": 1.5
   },
   "transcriber": {
     "provider": "deepgram",
