@@ -85,6 +85,10 @@
       },
       {
         "type": "endCall",
+        "function": {
+          "name": "end_call",
+          "description": "End the phone call. Use after the patient's registration or update has been saved successfully, when the caller says goodbye or that they're done, when they ask for something this line can't handle, after two failed save attempts, or after two unanswered re-prompts. Always speak a short closing line before calling this. Never call it while a field is still being collected."
+        },
         "messages": [
           {
             "type": "request-start",
