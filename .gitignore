@@ -4,3 +4,6 @@ __pycache__/
 patients.db
 .env
 .pytest_cache/
+
+# Assessment brief — confidential, candidate use only. Never commit.
+Voice AI Agent Coding Challenge.*
