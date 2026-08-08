@@ -10,7 +10,7 @@ from datetime import date, datetime
 from enum import Enum
 from typing import Optional
 
-from pydantic import BaseModel, EmailStr, Field, field_validator, ConfigDict
+from pydantic import BaseModel, EmailStr, Field, field_validator, model_validator, ConfigDict
 
 NAME_RE = re.compile(r"^[A-Za-z' -]{1,50}$")
 ZIP_RE = re.compile(r"^\d{5}(-\d{4})?$")
@@ -32,6 +32,33 @@ STATE_NAMES = {
     "district of columbia": "DC", "washington dc": "DC",
 }
 US_STATES = set(STATE_NAMES.values())
+
+# ZIP prefix (first 3 digits) -> state, as inclusive ranges. Used only to catch
+# a ZIP that provably belongs to a different state than the caller gave —
+# transcripts produced "Chicago, Illinois, 75050" and "New York, 79234", both
+# of which are Texas ZIPs. Deliberately incomplete: a prefix not listed here
+# passes, so gaps in this table can never reject a legitimate address.
+ZIP_PREFIX_RANGES: list[tuple[int, int, str]] = [
+    (10, 27, "MA"), (28, 29, "RI"), (30, 38, "NH"), (39, 49, "ME"),
+    (50, 54, "VT"), (56, 59, "VT"), (60, 69, "CT"), (70, 89, "NJ"),
+    (100, 149, "NY"), (150, 196, "PA"), (197, 199, "DE"),
+    (200, 200, "DC"), (202, 205, "DC"), (206, 219, "MD"),
+    (220, 246, "VA"), (247, 268, "WV"), (270, 289, "NC"), (290, 299, "SC"),
+    (300, 319, "GA"), (320, 339, "FL"), (341, 342, "FL"), (344, 344, "FL"),
+    (346, 347, "FL"), (349, 349, "FL"),
+    (350, 352, "AL"), (354, 369, "AL"), (370, 385, "TN"), (386, 397, "MS"),
+    (398, 399, "GA"), (400, 427, "KY"), (430, 459, "OH"), (460, 479, "IN"),
+    (480, 499, "MI"), (500, 528, "IA"), (530, 549, "WI"), (550, 567, "MN"),
+    (570, 577, "SD"), (580, 588, "ND"), (590, 599, "MT"),
+    (600, 620, "IL"), (622, 629, "IL"), (630, 658, "MO"), (660, 679, "KS"),
+    (680, 693, "NE"), (700, 701, "LA"), (703, 708, "LA"), (710, 714, "LA"),
+    (716, 729, "AR"), (730, 731, "OK"), (734, 749, "OK"),
+    (750, 799, "TX"), (800, 816, "CO"), (820, 831, "WY"), (832, 838, "ID"),
+    (840, 847, "UT"), (850, 860, "AZ"), (863, 865, "AZ"),
+    (870, 884, "NM"), (889, 898, "NV"), (900, 908, "CA"), (910, 928, "CA"),
+    (930, 961, "CA"), (967, 968, "HI"), (970, 979, "OR"), (980, 994, "WA"),
+    (995, 999, "AK"),
+]
 # Deepgram hands back homophones for spoken sex; map them before the enum rejects them.
 SEX_ALIASES = {
     "mail": "Male", "male": "Male", "mayle": "Male", "m": "Male",
@@ -78,13 +105,37 @@ def _spoken_to_digits(v: str) -> str:
     return "".join(out)
 
 
-def _digits_only(v: str, field_name: str) -> str:
+def _digits_only(v: str, field_name: str, strict: bool = False) -> str:
+    """Normalize to 10 digits. `strict` additionally enforces NANP rules.
+
+    Strict runs on writes only. Reads stay lenient so rows saved before these
+    rules existed remain retrievable — tightening validation should not make
+    old data unreadable.
+    """
     digits = _spoken_to_digits(v)
     if len(digits) == 11 and digits.startswith("1"):
         digits = digits[1:]  # leading country code
     if len(digits) != 10:
         raise ValueError(f"{field_name} must be a valid U.S. 10-digit phone number")
+    if strict and digits[0] in "01":
+        # NANP area codes never begin with 0 or 1. Callers dictated
+        # "0345329998" and "0986567893" — ten digits each, neither U.S.
+        # The sibling NANP rule (exchange can't start with 0/1) is deliberately
+        # not enforced: it would reject the familiar fictional 555-123-4567,
+        # and no observed failure needed it.
+        raise ValueError(
+            f"{field_name} is not a U.S. number — area codes never start with {digits[0]}"
+        )
     return digits
+
+
+def _state_for_zip(zip_code: str) -> Optional[str]:
+    """The state a ZIP provably belongs to, or None if the prefix isn't mapped."""
+    prefix = int(zip_code[:3])
+    for low, high, state in ZIP_PREFIX_RANGES:
+        if low <= prefix <= high:
+            return state
+    return None
 
 
 def _normalize_sex(v):
@@ -178,9 +229,48 @@ class PatientBase(BaseModel):
         return v
 
 
+def _check_zip_matches_state(state: Optional[str], zip_code: Optional[str]):
+    """Reject a ZIP that belongs to a different state than the caller gave.
+
+    Live calls produced "Chicago, Illinois, 75050" and "New York, 79234" — both
+    Texas ZIPs, both saved without complaint. Either the city/state or the ZIP
+    was misheard; the record is wrong regardless, so it's worth one more
+    question on the call.
+    """
+    if not state or not zip_code:
+        return
+    actual = _state_for_zip(zip_code)
+    if actual and actual != state:
+        raise ValueError(
+            f"zip_code {zip_code} is in {actual}, not {state} — "
+            "please confirm the ZIP code and the state"
+        )
+
+
 class PatientCreate(PatientBase):
-    """Everything the voice agent / POST /patients must supply."""
-    pass
+    """Everything the voice agent / POST /patients must supply.
+
+    Carries the strict U.S.-specific rules that apply on write but not on read
+    (see _digits_only): a record entering the system must look like a real U.S.
+    patient, while records already stored stay readable regardless.
+    """
+
+    @field_validator("phone_number")
+    @classmethod
+    def _validate_phone(cls, v: str) -> str:
+        return _digits_only(v, "phone_number", strict=True)
+
+    @field_validator("emergency_contact_phone")
+    @classmethod
+    def _validate_emergency_phone(cls, v: Optional[str]) -> Optional[str]:
+        if v is None or v == "":
+            return None
+        return _digits_only(v, "emergency_contact_phone", strict=True)
+
+    @model_validator(mode="after")
+    def _validate_zip_matches_state(self):
+        _check_zip_matches_state(self.state, self.zip_code)
+        return self
 
 
 class PatientUpdate(BaseModel):
@@ -222,12 +312,12 @@ class PatientUpdate(BaseModel):
     @field_validator("phone_number")
     @classmethod
     def _validate_phone(cls, v: Optional[str]) -> Optional[str]:
-        return _digits_only(v, "phone_number") if v is not None else v
+        return _digits_only(v, "phone_number", strict=True) if v is not None else v
 
     @field_validator("emergency_contact_phone")
     @classmethod
     def _validate_emergency_phone(cls, v: Optional[str]) -> Optional[str]:
-        return _digits_only(v, "emergency_contact_phone") if v else None
+        return _digits_only(v, "emergency_contact_phone", strict=True) if v else None
 
     @field_validator("state")
     @classmethod
@@ -243,6 +333,13 @@ class PatientUpdate(BaseModel):
         if not ZIP_RE.match(v):
             raise ValueError("zip_code must be 5-digit or ZIP+4 U.S. format")
         return v
+
+    @model_validator(mode="after")
+    def _validate_zip_matches_state(self):
+        # Only meaningful when the update supplies both; a ZIP-only update
+        # can't be cross-checked without reading the stored row.
+        _check_zip_matches_state(self.state, self.zip_code)
+        return self
 
 
 class PatientOut(PatientBase):

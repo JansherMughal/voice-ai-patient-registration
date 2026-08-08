@@ -34,11 +34,11 @@ PATIENT = {
     "last_name": "Butler",
     "date_of_birth": "1988-06-25",
     "sex": "Male",
-    "phone_number": "1234567998",
+    "phone_number": "2234567998",
     "address_line_1": "2 Bovat",
     "city": "New York City",
     "state": "NY",
-    "zip_code": "75523",
+    "zip_code": "10001",
 }
 
 

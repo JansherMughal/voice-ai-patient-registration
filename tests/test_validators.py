@@ -19,7 +19,7 @@ BASE = {
     "address_line_1": "2 Bovat Street",
     "city": "New York City",
     "state": "NY",
-    "zip_code": "75523",
+    "zip_code": "10001",
 }
 
 
@@ -66,9 +66,12 @@ def test_sex_homophones_normalized(heard, expected):
     assert make(sex=heard).sex.value == expected
 
 
-@pytest.mark.parametrize("spoken,expected", [("New York", "NY"), ("texas", "TX"), ("ny", "NY")])
-def test_state_names_map_to_abbreviations(spoken, expected):
-    assert make(state=spoken).state == expected
+@pytest.mark.parametrize(
+    "spoken,zip_code,expected",
+    [("New York", "10001", "NY"), ("texas", "75050", "TX"), ("ny", "10001", "NY")],
+)
+def test_state_names_map_to_abbreviations(spoken, zip_code, expected):
+    assert make(state=spoken, zip_code=zip_code).state == expected
 
 
 def test_unknown_state_rejected():
@@ -77,9 +80,48 @@ def test_unknown_state_rejected():
 
 
 def test_zip_spoken_as_separate_digits():
-    assert make(zip_code="7 5 5 2 3").zip_code == "75523"
+    assert make(zip_code="1 0 0 0 1").zip_code == "10001"
+
+
+@pytest.mark.parametrize("bad", ["0345329998", "0986567893", "1234567890"])
+def test_non_us_numbers_rejected_even_when_ten_digits(bad):
+    """Live calls dictated Pakistani numbers; ten digits is not enough to be a
+    U.S. number. NANP area codes never begin with 0 or 1."""
+    with pytest.raises(ValidationError, match="phone_number"):
+        make(phone_number=bad)
+
+
+def test_zip_belonging_to_another_state_is_rejected():
+    """Three live registrations stored Texas ZIPs against NY and IL."""
+    with pytest.raises(ValidationError, match="zip_code"):
+        make(city="Chicago", state="Illinois", zip_code="75050")
+
+
+def test_zip_matching_its_state_is_accepted():
+    assert make(state="Texas", zip_code="75050", city="Grand Prairie").state == "TX"
+
+
+def test_unmapped_zip_prefix_passes_rather_than_rejecting():
+    """The prefix table is deliberately incomplete — a gap must never reject a
+    legitimate address, so unknown prefixes are allowed through."""
+    assert make(state="NY", zip_code="00501", city="Holtsville").zip_code == "00501"
+
+
+def test_reads_stay_lenient_so_rows_saved_before_these_rules_remain_readable():
+    from app.schemas import PatientOut
+
+    stored = {
+        **BASE,
+        "phone_number": "0345329998",   # would be rejected on write now
+        "state": "NY",
+        "zip_code": "75050",  # Texas ZIP against NY, would be rejected on write now
+        "patient_id": "abc",
+        "created_at": "2026-01-01T00:00:00Z",
+        "updated_at": "2026-01-01T00:00:00Z",
+    }
+    assert PatientOut(**stored).phone_number == "0345329998"
 
 
 def test_update_schema_normalizes_the_same_way():
-    upd = PatientUpdate(sex="Mail", state="New York", phone_number="double 1 22334455")
-    assert (upd.sex.value, upd.state, upd.phone_number) == ("Male", "NY", "1122334455")
+    upd = PatientUpdate(sex="Mail", state="New York", phone_number="double 2 double 3 445566")
+    assert (upd.sex.value, upd.state, upd.phone_number) == ("Male", "NY", "2233445566")
