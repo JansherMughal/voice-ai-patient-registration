@@ -75,7 +75,31 @@ def test_lookup_patient_accepts_json_string_args():
             json=_tool_call("lookup_patient", json.dumps({"phone_number": "5559999999"})),
             headers={"x-vapi-secret": SECRET},
         )
-    assert resp.json()["results"][0]["result"] == "no_existing_patient"
+    assert resp.json()["results"][0]["result"] == "no_existing_patient|5559999999"
+
+
+@pytest.mark.parametrize(
+    "spoken,expected_prefix",
+    [
+        ("5551234567", "no_existing_patient|5551234567"),
+        ("triple five 1234567", "no_existing_patient|5551234567"),
+        ("+1 555 123 4567", "no_existing_patient|5551234567"),
+        ("555123456", "invalid_phone|"),      # 9 digits — the recurring live failure
+        ("55512345678", "invalid_phone|"),    # 11 digits, not a country code
+        ("", "invalid_phone|"),
+    ],
+)
+def test_lookup_counts_digits_so_the_model_does_not_have_to(spoken, expected_prefix):
+    """Transcripts show the LLM calling one 10-digit number "8", then "9", then
+    "11" digits. Counting moved server-side; the tool result is authoritative."""
+    with TestClient(app) as client:
+        resp = client.post(
+            "/vapi/webhook",
+            json=_tool_call("lookup_patient", {"phone_number": spoken}),
+            headers={"x-vapi-secret": SECRET},
+        )
+    result = resp.json()["results"][0]["result"]
+    assert result.startswith(expected_prefix), result
 
 
 def test_end_of_call_report_stores_a_transcript_linked_to_the_patient():

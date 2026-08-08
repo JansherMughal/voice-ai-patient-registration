@@ -23,7 +23,7 @@ from app import services
 from app.config import VAPI_WEBHOOK_SECRET
 from app.db import get_db
 from app.models import CallTranscript
-from app.schemas import PatientCreate, PatientUpdate
+from app.schemas import PatientCreate, PatientUpdate, _spoken_to_digits
 
 logger = logging.getLogger("vapi_webhook")
 router = APIRouter(prefix="/vapi", tags=["vapi"])
@@ -47,10 +47,26 @@ def _format_validation_error(exc: ValidationError) -> str:
 
 
 def _handle_lookup_patient(args: dict, db: Session) -> str:
-    phone = args.get("phone_number", "")
-    patient = services.find_by_phone(db, phone)
+    """Also acts as the digit counter for the agent.
+
+    Transcripts showed the LLM consistently miscounting digits out loud — it
+    called the same 10-digit number "8 digits", then "9", then "11". Counting is
+    exact here and guesswork there, so the agent is told to send whatever it has
+    and let this answer decide.
+    """
+    digits = _spoken_to_digits(args.get("phone_number", ""))
+    if len(digits) == 11 and digits.startswith("1"):
+        digits = digits[1:]  # leading country code
+
+    if len(digits) != 10:
+        short_by = 10 - len(digits)
+        if short_by > 0:
+            return f"invalid_phone|so far I have {len(digits)} of 10 digits, ask for {short_by} more"
+        return f"invalid_phone|that's {len(digits)} digits, 10 too many by {-short_by}; ask them to say the whole number again"
+
+    patient = services.find_by_phone(db, digits)
     if not patient:
-        return "no_existing_patient"
+        return f"no_existing_patient|{digits}"
     return f"existing_patient_found|{patient.patient_id}|{patient.first_name}|{patient.last_name}"
 
 

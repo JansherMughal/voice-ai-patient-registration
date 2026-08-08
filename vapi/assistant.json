@@ -92,7 +92,7 @@
         "messages": [
           {
             "type": "request-start",
-            "content": "You're all set. Thanks for calling, take care!"
+            "content": "Take care now. Goodbye."
           }
         ]
       }
@@ -130,8 +130,7 @@
     "smartFormat": true,
     "keyterm": ["Doe", "Jane", "Bovat"]
   },
-  "serverUrl": "https://<your-railway-app>.up.railway.app/vapi/webhook",
-  "serverUrlSecret": "<same value as VAPI_WEBHOOK_SECRET>",
+  "serverUrl": "https://voice-ai-patient-registration-production-2d88.up.railway.app/vapi/webhook",
   "backgroundDenoisingEnabled": true,
   "silenceTimeoutSeconds": 90,
   "messagePlan": {
