@@ -8,7 +8,7 @@ from fastapi.responses import JSONResponse
 
 from app.db import Base, engine, SessionLocal
 from app.models import Patient
-from app.routers import patients, vapi, dashboard
+from app.routers import patients, vapi, dashboard, transcripts
 
 logging.basicConfig(level=logging.INFO)
 
@@ -17,6 +17,7 @@ app = FastAPI(title="Voice AI Patient Registration API")
 app.include_router(patients.router)
 app.include_router(vapi.router)
 app.include_router(dashboard.router)
+app.include_router(transcripts.router)
 
 
 @app.exception_handler(HTTPException)

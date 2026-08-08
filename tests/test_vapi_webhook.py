@@ -76,3 +76,32 @@ def test_lookup_patient_accepts_json_string_args():
             headers={"x-vapi-secret": SECRET},
         )
     assert resp.json()["results"][0]["result"] == "no_existing_patient"
+
+
+def test_end_of_call_report_stores_a_transcript_linked_to_the_patient():
+    """The report carries only the Vapi call id, so the link comes from the
+    call_id -> patient_id map populated during the register_patient tool call."""
+    headers = {"x-vapi-secret": SECRET}
+    with TestClient(app) as client:
+        reg = client.post("/vapi/webhook", json=_tool_call("register_patient", PATIENT), headers=headers)
+        patient_id = reg.json()["results"][0]["result"].split("|")[1]
+
+        client.post(
+            "/vapi/webhook",
+            json={
+                "message": {
+                    "type": "end-of-call-report",
+                    "call": {"id": "call-1"},
+                    "transcript": "AI: Hi, I'm Ava.\nUser: Hello.",
+                    "summary": "Registered John Butler.",
+                }
+            },
+            headers=headers,
+        )
+
+        rows = client.get("/transcripts").json()["data"]
+
+    assert len(rows) == 1
+    assert rows[0]["patient_id"] == patient_id
+    assert rows[0]["patient_name"] == "John Butler"
+    assert "I'm Ava" in rows[0]["transcript"]

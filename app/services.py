@@ -12,7 +12,7 @@ from typing import Optional
 from sqlalchemy import and_
 from sqlalchemy.orm import Session
 
-from app.models import Patient
+from app.models import CallTranscript, Patient
 from app.schemas import PatientCreate, PatientUpdate
 
 
@@ -67,6 +67,16 @@ def update_patient(db: Session, patient: Patient, data: PatientUpdate) -> Patien
     db.commit()
     db.refresh(patient)
     return patient
+
+
+def list_transcripts(
+    db: Session, patient_id: Optional[str] = None, limit: int = 50
+) -> list[CallTranscript]:
+    """Call transcripts, newest first — for reviewing how the agent actually behaved."""
+    query = db.query(CallTranscript)
+    if patient_id:
+        query = query.filter(CallTranscript.patient_id == patient_id)
+    return query.order_by(CallTranscript.created_at.desc()).limit(limit).all()
 
 
 def soft_delete_patient(db: Session, patient: Patient) -> Patient:
