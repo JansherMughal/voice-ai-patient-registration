@@ -104,8 +104,10 @@
   },
   "transcriber": {
     "provider": "deepgram",
-    "model": "nova-2",
-    "language": "en-US"
+    "model": "nova-3",
+    "language": "en-US",
+    "smartFormat": true,
+    "keyterm": ["Doe", "Jane", "Bovat"]
   },
   "serverUrl": "https://<your-railway-app>.up.railway.app/vapi/webhook",
   "serverUrlSecret": "<same value as VAPI_WEBHOOK_SECRET>",
