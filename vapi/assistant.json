@@ -82,6 +82,15 @@
             "required": ["patient_id"]
           }
         }
+      },
+      {
+        "type": "endCall",
+        "messages": [
+          {
+            "type": "request-start",
+            "content": "You're all set. Thanks for calling, take care!"
+          }
+        ]
       }
     ]
   },
@@ -96,6 +105,5 @@
   },
   "serverUrl": "https://<your-railway-app>.up.railway.app/vapi/webhook",
   "serverUrlSecret": "<same value as VAPI_WEBHOOK_SECRET>",
-  "endCallFunctionEnabled": true,
   "backgroundDenoisingEnabled": true
 }
