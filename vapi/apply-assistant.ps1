@@ -9,10 +9,13 @@
 # The system prompt comes from prompts/system_prompt.md (the code fence), not
 # from assistant.json, whose systemPrompt field is a placeholder.
 #
-# Reads three variables from the environment (process, user, or machine scope):
+# Reads two variables from the environment (process, user, or machine scope):
 #   VAPI_PRIVATE_KEY      Vapi -> Organization Settings -> API Keys (private)
 #   VAPI_ASSISTANT_ID     Assistants -> Ava -> id shown under the name
-#   VAPI_WEBHOOK_SECRET   must match Railway's VAPI_WEBHOOK_SECRET
+#
+# Does NOT manage the assistant-level Server URL / secret. Those are set once in
+# the dashboard; sending them here alongside the assistant's existing legacy
+# serverUrl made the API return a 500.
 #
 # Set them once at user scope so they survive new shells:
 #   [Environment]::SetEnvironmentVariable("VAPI_PRIVATE_KEY", "...", "User")
@@ -33,9 +36,8 @@ function Get-RequiredVar([string]$name, [string]$hint) {
     return $value
 }
 
-$privateKey    = Get-RequiredVar "VAPI_PRIVATE_KEY"    "Vapi dashboard -> Organization Settings -> API Keys (private key)."
-$assistantId   = Get-RequiredVar "VAPI_ASSISTANT_ID"   "Assistants -> Ava -> the id shown under the name."
-$webhookSecret = Get-RequiredVar "VAPI_WEBHOOK_SECRET" "Must match Railway's VAPI_WEBHOOK_SECRET."
+$privateKey  = Get-RequiredVar "VAPI_PRIVATE_KEY"  "Vapi dashboard -> Organization Settings -> API Keys (private key)."
+$assistantId = Get-RequiredVar "VAPI_ASSISTANT_ID" "Assistants -> Ava -> the id shown under the name."
 
 $root = Split-Path $PSScriptRoot -Parent
 $cfg = Get-Content "$root/vapi/assistant.json" -Raw | ConvertFrom-Json
@@ -54,13 +56,6 @@ $toolIds = @($tools | ForEach-Object { $_.id })
 Write-Host "Attaching $($toolIds.Count) tools:" ($tools | ForEach-Object { $_.function.name ?? $_.type })
 
 $payload = @{
-    # Assistant-level server: where end-of-call-report lands. The per-tool
-    # server URLs only receive tool-calls, so without this transcripts are
-    # never delivered. Secret comes from the environment, never the repo.
-    server                 = @{
-        url    = $cfg.serverUrl
-        secret = $webhookSecret
-    }
     firstMessage           = $cfg.firstMessage
     voice                  = $cfg.voice
     transcriber            = $cfg.transcriber
