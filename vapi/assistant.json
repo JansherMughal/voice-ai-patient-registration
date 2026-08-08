@@ -109,5 +109,15 @@
   },
   "serverUrl": "https://<your-railway-app>.up.railway.app/vapi/webhook",
   "serverUrlSecret": "<same value as VAPI_WEBHOOK_SECRET>",
-  "backgroundDenoisingEnabled": true
+  "backgroundDenoisingEnabled": true,
+  "silenceTimeoutSeconds": 90,
+  "messagePlan": {
+    "idleMessages": [
+      "Take your time, I'm still here.",
+      "Are you still there?",
+      "I'll stay on the line a moment longer in case we got disconnected."
+    ],
+    "idleTimeoutSeconds": 20,
+    "idleMessageMaxSpokenCount": 3
+  }
 }
