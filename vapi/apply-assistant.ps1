@@ -1,7 +1,11 @@
 # Pushes the tuned settings in assistant.json to a live Vapi assistant.
 #
-# Deliberately does NOT send "tools" -- the dashboard holds those as separate
-# published entities, and sending the inline copies here would duplicate them.
+# The dashboard holds tools as separate published entities, so this sends
+# toolIds fetched from the API rather than the inline definitions in
+# assistant.json -- sending those would duplicate them. PATCHing "model"
+# replaces the whole object, so toolIds MUST be included or the assistant
+# loses every tool.
+#
 # The system prompt comes from prompts/system_prompt.md (the code fence), not
 # from assistant.json, whose systemPrompt field is a placeholder.
 #
@@ -23,6 +27,14 @@ $md = Get-Content "$root/prompts/system_prompt.md" -Raw
 if ($md -notmatch '(?s)```\r?\n(.*?)```') { throw "No code fence found in system_prompt.md" }
 $systemPrompt = $Matches[1].Trim()
 
+$headers = @{ Authorization = "Bearer $env:VAPI_PRIVATE_KEY" }
+
+# Attach every tool in the account. Fine while this org has exactly the four
+# tools this assistant needs; filter by name here if that stops being true.
+$tools = Invoke-RestMethod -Uri "https://api.vapi.ai/tool" -Headers $headers
+$toolIds = @($tools | ForEach-Object { $_.id })
+Write-Host "Attaching $($toolIds.Count) tools:" ($tools | ForEach-Object { $_.function.name ?? $_.type })
+
 $payload = @{
     firstMessage           = $cfg.firstMessage
     voice                  = $cfg.voice
@@ -36,11 +48,12 @@ $payload = @{
         model       = $cfg.model.model
         temperature = $cfg.model.temperature
         messages    = @(@{ role = "system"; content = $systemPrompt })
+        toolIds     = $toolIds
     }
 } | ConvertTo-Json -Depth 10
 
 Invoke-RestMethod -Method Patch `
     -Uri "https://api.vapi.ai/assistant/$env:VAPI_ASSISTANT_ID" `
-    -Headers @{ Authorization = "Bearer $env:VAPI_PRIVATE_KEY" } `
+    -Headers $headers `
     -ContentType "application/json" `
     -Body $payload | Select-Object id, name, updatedAt
