@@ -106,7 +106,7 @@
     "similarityBoost": 0.75,
     "style": 0.0,
     "useSpeakerBoost": true,
-    "speed": 0.88,
+    "speed": 0.92,
     "optimizeStreamingLatency": 1
   },
   "startSpeakingPlan": {
