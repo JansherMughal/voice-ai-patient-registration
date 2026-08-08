@@ -78,6 +78,24 @@ def test_lookup_patient_accepts_json_string_args():
     assert resp.json()["results"][0]["result"] == "no_existing_patient|5559999999"
 
 
+def test_model_level_validation_error_is_speakable_not_a_crash():
+    """A live call died with "error|tuple index out of range": the ZIP/state
+    cross-check reports an empty loc, and loc[-1] raised IndexError."""
+    with TestClient(app) as client:
+        resp = client.post(
+            "/vapi/webhook",
+            json=_tool_call(
+                "register_patient",
+                {**PATIENT, "city": "Portland", "state": "OR", "zip_code": "99901"},
+            ),
+            headers={"x-vapi-secret": SECRET},
+        )
+    result = resp.json()["results"][0]["result"]
+    assert result.startswith("validation_error|"), result
+    assert "99901" in result and "AK" in result, result
+    assert "Value error" not in result, result
+
+
 @pytest.mark.parametrize(
     "spoken,expected_prefix",
     [

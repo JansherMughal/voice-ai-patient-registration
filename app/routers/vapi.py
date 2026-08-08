@@ -40,10 +40,19 @@ def _verify_secret(x_vapi_secret: str | None):
 
 
 def _format_validation_error(exc: ValidationError) -> str:
-    """Turn a Pydantic error into one sentence the LLM can speak back to re-prompt a field."""
+    """Turn a Pydantic error into one sentence the LLM can speak back to re-prompt a field.
+
+    Model-level validators (the ZIP/state cross-check) report an empty `loc`,
+    so there is no single field to name — their message already says which
+    fields are involved. Indexing into that empty tuple crashed a live call.
+    """
     first = exc.errors()[0]
-    field = first["loc"][-1]
-    return f"{field}: {first['msg']}"
+    msg = first["msg"]
+    # Pydantic prefixes ValueError messages; the agent reads this aloud.
+    if msg.startswith("Value error, "):
+        msg = msg[len("Value error, "):]
+    loc = first["loc"]
+    return f"{loc[-1]}: {msg}" if loc else msg
 
 
 def _handle_lookup_patient(args: dict, db: Session) -> str:
