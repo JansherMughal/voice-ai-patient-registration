@@ -100,7 +100,7 @@
   },
   "voice": {
     "provider": "11labs",
-    "voiceId": "rachel",
+    "voiceId": "sarah",
     "stability": 0.45,
     "similarityBoost": 0.75,
     "style": 0.1,
