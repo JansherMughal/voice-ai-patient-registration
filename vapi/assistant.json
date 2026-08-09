@@ -1,6 +1,7 @@
 {
   "name": "Ava - Patient Intake",
-  "firstMessage": "Hi, thanks for calling! I'm Ava, and I can help you get registered as a new patient. Can I start with the phone number you'd like on file?",
+  "firstMessage": "Hello... hi there, thanks for calling! I'm Ava, and I can help you get registered as a new patient. Can I start with the phone number you'd like on file?",
+  "_firstMessageNote": "The leading 'Hello...' is deliberate padding. On a real PSTN call the first ~1s of audio is cut while the line settles, which was eating 'registered' and 'Can'. The padding absorbs the clip and the ellipsis adds a pause before anything informative.",
   "model": {
     "provider": "openai",
     "model": "gpt-4o",
@@ -106,7 +107,7 @@
     "similarityBoost": 0.75,
     "style": 0.0,
     "useSpeakerBoost": true,
-    "speed": 0.92,
+    "speed": 0.90,
     "optimizeStreamingLatency": 1
   },
   "startSpeakingPlan": {
