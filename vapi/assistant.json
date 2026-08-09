@@ -4,7 +4,7 @@
   "_firstMessageNote": "The leading 'Hello...' is deliberate padding. On a real PSTN call the first ~1s of audio is cut while the line settles, which was eating 'registered' and 'Can'. The padding absorbs the clip and the ellipsis adds a pause before anything informative.",
   "model": {
     "provider": "openai",
-    "model": "gpt-4o",
+    "model": "gpt-4.1",
     "temperature": 0.4,
     "systemPrompt": "<paste contents of prompts/system_prompt.md code block here>",
     "tools": [
