@@ -108,7 +108,7 @@
     "style": 0.0,
     "useSpeakerBoost": true,
     "speed": 0.90,
-    "optimizeStreamingLatency": 1
+    "optimizeStreamingLatency": 0
   },
   "startSpeakingPlan": {
     "waitSeconds": 0.6,
