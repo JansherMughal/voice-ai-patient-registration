@@ -15,7 +15,7 @@ graph LR
     caller["Caller<br/>(US phone)"]
 
     subgraph vapi["Vapi (managed voice pipeline)"]
-        pstn["Telephony<br/>+1 716 513 2013"]
+        pstn["Telephony<br/>+1 502 289 4119"]
         stt["Deepgram nova-3<br/>speech to text"]
         llm["OpenAI GPT-4.1<br/>temp 0.4"]
         tts["ElevenLabs turbo_v2_5<br/>text to speech"]

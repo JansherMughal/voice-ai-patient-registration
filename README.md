@@ -6,10 +6,10 @@ through a REST API and dashboard.
 
 | | |
 |---|---|
-| **Phone number** | **+1 (716) 513-2013** — call it and register |
-| **API base URL** | https://voice-ai-patient-registration-production-2d88.up.railway.app |
-| **Dashboard** | [`/dashboard`](https://voice-ai-patient-registration-production-2d88.up.railway.app/dashboard) |
-| **API docs** | [`/docs`](https://voice-ai-patient-registration-production-2d88.up.railway.app/docs) |
+| **Phone number** | **+1 (502) 289-4119** — call it and register |
+| **API base URL** | https://voice-ai-patient-registration-production-0cbc.up.railway.app |
+| **Dashboard** | [`/dashboard`](https://voice-ai-patient-registration-production-0cbc.up.railway.app/dashboard) |
+| **API docs** | [`/docs`](https://voice-ai-patient-registration-production-0cbc.up.railway.app/docs) |
 
 No credentials needed to test — the REST API is open by design so reviewers can
 query it directly. Only the Vapi webhook is secret-verified.
@@ -133,7 +133,7 @@ envelope is preserved on error paths by exception handlers in
 Try it:
 
 ```bash
-BASE=https://voice-ai-patient-registration-production-2d88.up.railway.app
+BASE=https://voice-ai-patient-registration-production-0cbc.up.railway.app
 curl -s $BASE/patients | python -m json.tool
 curl -s "$BASE/patients?last_name=Doe" | python -m json.tool
 curl -s $BASE/transcripts | python -m json.tool

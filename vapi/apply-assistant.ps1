@@ -13,9 +13,16 @@
 #   VAPI_PRIVATE_KEY      Vapi -> Organization Settings -> API Keys (private)
 #   VAPI_ASSISTANT_ID     Assistants -> Ava -> id shown under the name
 #
-# Does NOT manage the assistant-level Server URL / secret. Those are set once in
-# the dashboard; sending them here alongside the assistant's existing legacy
-# serverUrl made the API return a 500.
+# Also pushes the webhook URL + secret to every place Vapi stores them
+# separately: the assistant's own `server` field AND each tool's own
+# `server` field (tools have their own webhook target independent of the
+# assistant -- the assistant-level URL is NOT a fallback for tool calls).
+# Missing the tool-level URLs after a redeploy/migration means every
+# lookup_patient/register_patient/update_patient call silently fails with
+# Vapi's "No result returned" error while the assistant itself looks fine.
+#
+# Patching assistant.server together with its legacy serverUrl field in the
+# same request returned a 500 -- only serverUrl is sent, never both.
 #
 # Set them once at user scope so they survive new shells:
 #   [Environment]::SetEnvironmentVariable("VAPI_PRIVATE_KEY", "...", "User")
@@ -36,11 +43,20 @@ function Get-RequiredVar([string]$name, [string]$hint) {
     return $value
 }
 
-$privateKey  = Get-RequiredVar "VAPI_PRIVATE_KEY"  "Vapi dashboard -> Organization Settings -> API Keys (private key)."
-$assistantId = Get-RequiredVar "VAPI_ASSISTANT_ID" "Assistants -> Ava -> the id shown under the name."
+$privateKey     = Get-RequiredVar "VAPI_PRIVATE_KEY"     "Vapi dashboard -> Organization Settings -> API Keys (private key)."
+$assistantId    = Get-RequiredVar "VAPI_ASSISTANT_ID"    "Assistants -> Ava -> the id shown under the name."
+$webhookSecret  = Get-RequiredVar "VAPI_WEBHOOK_SECRET"  "Same value set as the app's VAPI_WEBHOOK_SECRET env var on Railway."
 
 $root = Split-Path $PSScriptRoot -Parent
 $cfg = Get-Content "$root/vapi/assistant.json" -Raw | ConvertFrom-Json
+
+# assistant.json's serverUrl is the single source of truth for the webhook
+# target -- update it there and every place below follows.
+$serverConfig = @{
+    url            = $cfg.serverUrl
+    timeoutSeconds = 20
+    headers        = @{ "x-vapi-secret" = $webhookSecret }
+}
 
 # The prompt lives inside the first ``` fence of the markdown file.
 $md = Get-Content "$root/prompts/system_prompt.md" -Raw
@@ -55,6 +71,15 @@ $tools = Invoke-RestMethod -Uri "https://api.vapi.ai/tool" -Headers $headers
 $toolIds = @($tools | ForEach-Object { $_.id })
 Write-Host "Attaching $($toolIds.Count) tools:" ($tools | ForEach-Object { $_.function.name ?? $_.type })
 
+# Each tool carries its own webhook target, independent of the assistant's --
+# push serverConfig to every tool that has one (end_call has no server).
+foreach ($tool in $tools) {
+    if (-not $tool.server) { continue }
+    $toolPayload = @{ server = $serverConfig } | ConvertTo-Json -Depth 5
+    Invoke-RestMethod -Method Patch -Uri "https://api.vapi.ai/tool/$($tool.id)" `
+        -Headers $headers -ContentType "application/json" -Body $toolPayload | Out-Null
+}
+
 $payload = @{
     firstMessage           = $cfg.firstMessage
     voice                  = $cfg.voice
@@ -63,6 +88,7 @@ $payload = @{
     stopSpeakingPlan       = $cfg.stopSpeakingPlan
     silenceTimeoutSeconds  = $cfg.silenceTimeoutSeconds
     messagePlan            = $cfg.messagePlan
+    server                 = $serverConfig
     model                  = @{
         provider    = $cfg.model.provider
         model       = $cfg.model.model
@@ -77,3 +103,24 @@ Invoke-RestMethod -Method Patch `
     -Headers $headers `
     -ContentType "application/json" `
     -Body $payload | Select-Object id, name, updatedAt
+
+# Verify: re-fetch and confirm every server.url actually landed on the
+# target domain. This is the check that would have caught the migration bug
+# -- all POSTs return 200 even when a tool's server.url is stale, because
+# the failure only shows up as Vapi's "No result returned" mid-call.
+Write-Host "`nVerifying server URLs..."
+$freshTools = Invoke-RestMethod -Uri "https://api.vapi.ai/tool" -Headers $headers
+$freshAssistant = Invoke-RestMethod -Uri "https://api.vapi.ai/assistant/$assistantId" -Headers $headers
+$mismatches = @()
+if ($freshAssistant.server.url -ne $cfg.serverUrl) {
+    $mismatches += "assistant Ava: $($freshAssistant.server.url)"
+}
+foreach ($tool in $freshTools) {
+    if ($tool.server -and $tool.server.url -ne $cfg.serverUrl) {
+        $mismatches += "tool $($tool.function.name): $($tool.server.url)"
+    }
+}
+if ($mismatches.Count -gt 0) {
+    throw "Server URL mismatch after apply, expected $($cfg.serverUrl):`n$($mismatches -join "`n")"
+}
+Write-Host "All server URLs match $($cfg.serverUrl)"
